@@ -8,6 +8,7 @@ from libc.math cimport exp, sqrt
 from likelihood import  gaussian_likelihood
 from likelihood import  logistic_likelihood
 from likelihood import  mixed_gaussian_likelihood
+from likelihood import  mixed_logistic_likelihood
 
 
 def hmm_viterbi_gaussian(yvec, mu, sigma, diag):
@@ -31,6 +32,16 @@ def hmm_viterbi_mixed_gaussian(yvec, mu, sigma, cval, diag):
 
 	soln = numpy.zeros((yvec.size,), numpy.int32)
 	soln = hmm_viterbi_c(lhood, diag)
+
+	return soln
+
+def hmm_viterbi_mixed_logistic(yvec, mu, sigma, cval, diag):
+	lhood = mixed_logistic_likelihood(yvec, mu, sigma, cval)
+
+	soln = numpy.zeros((yvec.size,), numpy.int32)
+	soln = hmm_viterbi_c(lhood, diag)
+
+	return soln
 
 
 def hmm_marginal_gaussian(yvec, mu, sigma, diag):
