@@ -5,33 +5,57 @@ cimport numpy
 from libc.math cimport exp, sqrt
 #from libc.math cimport M_PI
 
-
-# the probabilities of observed values in a zero mean standard distribution
-## with standard deviation.
-## default is standard normal
-#def prob_normal_vec_1d(vec, s=1.0):
-#	return c_prob_normal_vec_1d(vec.astype(numpy.double), numpy.double(s))
-#
-#
-
-# gaussian probabilities sans the normalisation constant
-cdef double prob_normal(double val,double mu,double sigma):
-	cdef double val1 = (val - mu)/sigma
-	return exp(-0.5*val1*val1)/sigma
+from likelihood import  gaussian_likelihood
+from likelihood import  logistic_likelihood
+from likelihood import  mixed_gaussian_likelihood
 
 
 def hmm_viterbi_gaussian(yvec, mu, sigma, diag):
-	return c_hmm_viterbi_gaussian(yvec, mu, sigma, diag)
+	lhood = gaussian_likelihood(yvec, mu, sigma)
+
+	soln = numpy.zeros((yvec.size,), numpy.int32)
+	soln = hmm_viterbi_c(lhood, diag)
+
+	return soln
+
+def hmm_viterbi_logistic(yvec, mu, sigma, diag):
+	lhood = logistic_likelihood(yvec, mu, sigma)
+
+	soln = numpy.zeros((yvec.size,), numpy.int32)
+	soln = hmm_viterbi_c(lhood, diag)
+
+	return soln
+
+def hmm_viterbi_mixed_gaussian(yvec, mu, sigma, cval, diag):
+	lhood = mixed_gaussian_likelihood(yvec, mu, sigma, cval)
+
+	soln = numpy.zeros((yvec.size,), numpy.int32)
+	soln = hmm_viterbi_c(lhood, diag)
 
 
-cdef numpy.ndarray[numpy.int32_t,ndim=1] c_hmm_viterbi_gaussian(
-		numpy.ndarray[numpy.float64_t,ndim=1] yvec,
-		numpy.ndarray[numpy.float64_t,ndim=1] mu,
-		numpy.ndarray[numpy.float64_t,ndim=1] sigma,
+def hmm_marginal_gaussian(yvec, mu, sigma, diag):
+	lhood = gaussian_likelihood(yvec, mu, sigma)
+
+	soln = numpy.zeros((yvec.size,), numpy.int32)
+	soln = hmm_marginal_c(lhood, diag)
+
+	return soln
+
+def hmm_marginal_logistic(yvec, mu, sigma, diag):
+	lhood = logistic_likelihood(yvec, mu, sigma)
+
+	soln = numpy.zeros((yvec.size,), numpy.int32)
+	soln = hmm_marginal_c(lhood, diag)
+
+	return soln
+
+
+cdef numpy.ndarray[numpy.int32_t,ndim=1] hmm_viterbi_c(
+		numpy.ndarray[numpy.float64_t,ndim=2] lhood,
 		double diag):
 
-	cdef int N = yvec.size
-	cdef int P = mu.size
+	cdef int N = lhood.shape[1]
+	cdef int P = lhood.shape[0]
 
 	cdef int i,j,t
 	cdef int idx
@@ -66,18 +90,18 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] c_hmm_viterbi_gaussian(
 	# are normalised to sum to one for numerical stability
 
 	# the first forward probability is likelihood only
-	for i in range(P):
-		fwd[i,0] = prob_normal(yvec[0],mu[i],sigma[i])
+	for i in range(P): fwd[:,0] = lhood[:,0]
 	fwd[:,0] /= fwd[:,0].sum()
 
 	# compute the remaining forward probabilities keeping track of
 	# the path to get to them
+	# i is the source forward probability to transition from
+	# j is the target forward probability to compute
+
 	for t in range(1,N):
-		# j is the target forward probability to compute
 		for j in range(P):
 			idx = 0
 			fwd_trans_prob = 0.0
-			# i is the source forward probability to transition from
 			for i in range(P):
 				tmp_double = fwd[i,t-1]*trans[i,j]
 				# if row i is the highest probability so far keep it
@@ -89,7 +113,7 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] c_hmm_viterbi_gaussian(
 			bwd[j,t-1] = idx
 			
 			# target is the most probable source times the likelihood
-			fwd[j,t] = fwd_trans_prob*prob_normal(yvec[t],mu[j],sigma[j])
+			fwd[j,t] = fwd_trans_prob*lhood[j,t]
 
 		# normalise the probabilities
 		fwd[:,t] /= fwd[:,t].sum()
@@ -108,18 +132,13 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] c_hmm_viterbi_gaussian(
 	return soln
 
 
-def hmm_marginal_gaussian(yvec, mu, sigma, diag):
-	return c_hmm_marginal_gaussian(yvec, mu, sigma, diag)
 
-
-cdef numpy.ndarray[numpy.int32_t,ndim=1] c_hmm_marginal_gaussian(
-		numpy.ndarray[numpy.float64_t,ndim=1] yvec,
-		numpy.ndarray[numpy.float64_t,ndim=1] mu,
-		numpy.ndarray[numpy.float64_t,ndim=1] sigma,
+cdef numpy.ndarray[numpy.int32_t,ndim=1] hmm_marginal_c(
+		numpy.ndarray[numpy.float64_t,ndim=2] lhood,
 		double diag):
 
-	cdef int N = yvec.size
-	cdef int P = mu.size
+	cdef int N = lhood.shape[1]
+	cdef int P = lhood.shape[0]
 
 	cdef int i,j,t
 	cdef int idx
@@ -153,9 +172,7 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] c_hmm_marginal_gaussian(
 	# sum to one for numerical stability
 
 	# the first forward probability is likelihood only
-	for i in range(P):
-		fwd[i,0] = prob_normal(yvec[0],mu[i],sigma[i])
-	fwd[:,0] /= fwd[:,0].sum()
+	fwd[:,0] = lhood[:,0]/lhood[:,0].sum()
 
 	# compute the remaining forward probabilities
 	for t in range(1,N):
@@ -165,7 +182,7 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] c_hmm_marginal_gaussian(
 			for i in range(P): fwd[j,t] += fwd[i,t-1]*trans[i,j]
 			
 			# multiply by the likelihood
-			fwd[j,t] *= prob_normal(yvec[t],mu[j],sigma[j])
+			fwd[j,t] *= lhood[j,t]
 
 		# normalise the probabilities
 		fwd[:,t] /= fwd[:,t].sum()
@@ -180,7 +197,7 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] c_hmm_marginal_gaussian(
 	while t >= 0:
 		for j in range(P):
 			# probability of the hidden state going through (j,t+1)
-			tmp_double = bwd[j,t+1]*prob_normal(yvec[t+1],mu[j],sigma[j])
+			tmp_double = bwd[j,t+1]*lhood[j,t+1]
 			for i in range(P):
 				bwd[i,t] += trans[i,j]*tmp_double
 		bwd[:,t] /= bwd[:,t].sum()
@@ -190,112 +207,3 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] c_hmm_marginal_gaussian(
 
 	return soln
 
-
-
-#	c_prob_normal_vec_1d(numpy.ndarray[numpy.float64_t,ndim=1] vec, double s):
-#
-#	cdef numpy.ndarray[numpy.float64_t,ndim=1] prob_vec = \
-#			numpy.exp(-0.5*(vec/s)**2)
-#
-#	return prob_vec/(s*sqrt(2.0*M_PI))
-#
-
-#cdef numpy.ndarray[numpy.float64_t,ndim=1] \
-#	c_prob_normal_vec_1d(numpy.ndarray[numpy.float64_t,ndim=1] vec, double s):
-#
-#	cdef numpy.ndarray[numpy.float64_t,ndim=1] prob_vec = \
-#			numpy.exp(-0.5*(vec/s)**2)
-#
-#	return prob_vec/(s*sqrt(2.0*M_PI))
-#
-#
-#def get_prob_no_signal(resids, cval, stdev=None):
-#	# probably want to use MAD instead
-#	resids = resids.astype(numpy.double)
-#	cval = numpy.double(cval)
-#	if stdev is None: stdev = resids.std()
-#
-#	return c_prob_no_signal(resids, cval, stdev)
-#
-#
-#cdef numpy.ndarray[numpy.float64_t,ndim=1] \
-#	c_prob_no_signal(numpy.ndarray[numpy.float64_t,ndim=1] vec,
-#		double cval, double stdev):
-#
-#	cdef numpy.ndarray[numpy.float64_t,ndim=1] prob_vec1 = \
-#			c_prob_normal_vec_1d(vec, stdev)
-#
-#
-#	cdef numpy.ndarray[numpy.float64_t,ndim=1] prob_vec2 = \
-#			c_prob_normal_vec_1d(vec, cval*stdev)
-#
-#
-#	cdef numpy.ndarray[numpy.float64_t,ndim=1] prob_no_signal = \
-#			prob_vec1/(prob_vec1 + prob_vec2)
-#
-#	return prob_no_signal
-#
-#
-#def forward(eprob,diag):
-#	return c_forward(eprob,diag)
-#
-#cdef numpy.ndarray[numpy.float64_t,ndim=2] \
-#	c_forward(numpy.ndarray[numpy.float64_t,ndim=1] eprob, double diag):
-#
-#	cdef int N = eprob.shape[0]
-#
-#	cdef numpy.ndarray[numpy.float64_t,ndim=2] fwd_probs = \
-#		numpy.zeros((2,N), numpy.double)
-#
-#	fwd_probs[0,0] = eprob[0]
-#	fwd_probs[1,0] = 1.0 - eprob[0]
-#
-#	cdef int i
-#	cdef double prob_sum
-#
-#	for i from 0 < i < N:
-#		fwd_probs[0,i] = fwd_probs[0,i-1]*diag*eprob[i]
-#		fwd_probs[0,i] += fwd_probs[1,i-1]*(1.0 - diag)*eprob[i]
-#
-#		fwd_probs[1,i] = fwd_probs[1,i-1]*diag*(1.0 - eprob[i])
-#		fwd_probs[1,i] += fwd_probs[0,i-1]*(1.0 - diag)*(1.0 - eprob[i])
-#
-#		prob_sum = fwd_probs[0,i] + fwd_probs[1,i]
-#		fwd_probs[0,i] /= prob_sum
-#		fwd_probs[1,i] /= prob_sum
-#
-#	return fwd_probs
-#
-#
-#def backward(eprob,diag):
-#	return c_backward(eprob,diag)
-#
-#
-#cdef numpy.ndarray[numpy.float64_t,ndim=2] \
-#	c_backward(numpy.ndarray[numpy.float64_t,ndim=1] eprob, double diag):
-#
-#	cdef int N = eprob.shape[0]
-#
-#	cdef numpy.ndarray[numpy.float64_t,ndim=2] bwd_probs = \
-#		numpy.zeros((2,N), numpy.double)
-#
-#	cdef int i
-#	cdef double prob_sum
-#
-#	bwd_probs[0,N-1] = 0.5
-#	bwd_probs[1,N-1] = 0.5
-#
-#	for i from N-1 > i >= 0:
-#		bwd_probs[0,i] = bwd_probs[0,i+1]*diag*eprob[i+1]
-#		bwd_probs[0,i] += bwd_probs[1,i+1]*(1.0 - diag)*(1.0 - eprob[i+1])
-#
-#		bwd_probs[1,i] = bwd_probs[1,i+1]*diag*(1.0 - eprob[i+1])
-#		bwd_probs[1,i] += bwd_probs[0,i+1]*(1.0 - diag)*eprob[i+1]
-#
-#		bwd_probs[:,i] /= bwd_probs[:,i].sum()
-#
-#	return bwd_probs
-
-
-# the most probable solution given gaussian emissions
-# use this to fix up data types for the pyx code then call

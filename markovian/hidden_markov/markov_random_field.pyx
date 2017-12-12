@@ -4,18 +4,51 @@ cimport numpy
 from libc.math cimport exp, sqrt
 #from libc.math cimport M_PI
 
-# gaussian probabilities sans the normalisation constant
-cdef double prob_normal(double val,double mu,double sigma):
-	cdef double val1 = (val - mu)/sigma
-	return exp(-0.5*val1*val1)/sigma
+from likelihood import  gaussian_likelihood
+from likelihood import  logistic_likelihood
 
 
+# Put the likelihoods in place
 def hmrf_gaussian(yvec, mu, sigma, diag, converge=10.0**-6,max_iter=64):
-	return c_hmrf_gaussian(yvec, mu, sigma, diag, converge, max_iter)
+	lhood = gaussian_likelihood(yvec, mu, sigma)
+	return solve_hmrf(lhood, diag, converge, max_iter)
+
+def hmrf_logistic(yvec, mu, sigma, diag, converge=10.0**-6,max_iter=64):
+	lhood = logistic_likelihood(yvec, mu, sigma)
+	return solve_hmrf(lhood, diag, converge, max_iter)
+
+
+# Execute the solution given the likelihood
+def	solve_hmrf(lhood, diag, converge, max_iter):
+	P,N = lhood.shape
+
+	# the Markov random field
+	mrf = numpy.zeros((P,N), numpy.float64)
+	mrf.fill(1.0/P)
+
+	# transition probabilities in the form of a matrix
+	trans = numpy.zeros((P,P), numpy.double)
+	trans.fill((1.0 - diag)/(P - 1))
+	for i in range(P): trans[i,i] = diag
+
+	idx = 0
+	while idx < max_iter:
+		converge_iter = hmrf_iter_cy(mrf, lhood, trans)
+		if converge_iter < converge: break
+
+		idx += 1
+
+	print 'converged at iteration', idx
+
+	# the marginal estimate
+#	soln = mrf.argmax(0).astype(numpy.int32)
+	soln = mrf.argmax(0)
+
+	return soln
 
 
 # one iteration of the function to solve the mrf given data
-cdef double c_solve_mrf_iter(
+cdef double hmrf_iter_cy(
 		numpy.ndarray[numpy.float64_t,ndim=2] mrf,
 		numpy.ndarray[numpy.float64_t,ndim=2] lhood,
 		numpy.ndarray[numpy.float64_t,ndim=2] trans):
@@ -79,84 +112,3 @@ cdef double c_solve_mrf_iter(
 
 	return converge_sum
 
-
-# function to solve the mrf given data
-cdef numpy.ndarray[numpy.float64_t,ndim=2] c_solve_mrf(
-		numpy.ndarray[numpy.float64_t,ndim=2] lhood,
-		numpy.ndarray[numpy.float64_t,ndim=2] trans,
-		double converge, int max_iter):
-
-
-	cdef int N = lhood.shape[1]
-	cdef int P = lhood.shape[0]
-
-	cdef int idx
-
-	cdef double converge_iter
-
-	# Markov random field
-	cdef numpy.ndarray[numpy.float64_t,ndim=2] mrf = \
-			numpy.zeros_like(lhood)
-
-	# initialise the mrf
-	mrf.fill(1.0/P)
-
-	idx = 0
-	while idx < max_iter:
-		converge_iter = c_solve_mrf_iter(mrf, lhood, trans)
-		print 'converge_iter =', converge_iter
-		if converge_iter < converge: break
-
-		idx += 1
-
-	return mrf
-
-
-
-# start breaking up the code in to functions
-cdef numpy.ndarray[numpy.int32_t,ndim=1] c_hmrf_gaussian(
-		numpy.ndarray[numpy.float64_t,ndim=1] yvec,
-		numpy.ndarray[numpy.float64_t,ndim=1] mu,
-		numpy.ndarray[numpy.float64_t,ndim=1] sigma,
-		double diag, double converge, int max_iter):
-
-	cdef int N = yvec.size
-	cdef int P = mu.size
-
-	cdef int i,t
-
-	# the solution
-	cdef numpy.ndarray[numpy.int32_t,ndim=1] soln = \
-			numpy.zeros((N,), numpy.int32)
-
-	# Markov random field
-	cdef numpy.ndarray[numpy.float64_t,ndim=2] mrf = \
-			numpy.zeros((P,N), numpy.float64)
-
-	# Likelihood
-	cdef numpy.ndarray[numpy.float64_t,ndim=2] lhood = \
-			numpy.zeros((P,N), numpy.float64)
-
-	# transition probabilities in the form of a matrix
-	cdef numpy.ndarray[numpy.float64_t,ndim=2] trans = \
-			numpy.zeros((P,P), numpy.double)
-
-	# fill the transition matrix with the off diagonal
-	trans.fill((1.0 - diag)/(P - 1))
-
-	# overwrite the diagonal 
-	for i in range(P): trans[i,i] = diag
-
-	print 'inside c_hmrf_gaussian'
-
-	# fill out the likelihood
-	for t in range(N):
-		for i in range(P):
-			lhood[i,t] = prob_normal(yvec[t],mu[i],sigma[i])
-	lhood /= lhood.sum(0)
-
-	mrf = c_solve_mrf(lhood,trans,converge,max_iter)
-
-	soln = mrf.argmax(0).astype(numpy.int32)
-
-	return soln
