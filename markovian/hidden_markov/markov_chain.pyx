@@ -1,4 +1,3 @@
-##import pywt
 import numpy 
 cimport numpy
 
@@ -10,6 +9,26 @@ from likelihood import  logistic_likelihood
 from likelihood import  mixed_gaussian_likelihood
 from likelihood import  mixed_logistic_likelihood
 
+# These are the models with a Markov chain prior.  All priors are
+# homogeneous and reversible.  Transitions probabilities are implemented
+# in the form of a matrix with all diagonal elements equal and all
+# off diagonal elements equal.
+
+# The choices of likelihoods are Gaussian or logistic and mixtures of either
+# to produce likelihods with heavier tails.
+
+# There are two solutions. The Viterbi and marginal aka forward backward.
+
+
+# The form of the prior and likelihood do not depend on each other.  In that
+# sense they are always conjugate.  The approach is to compute the likelihood
+# then feed it to the prior for a solution.
+
+
+# ------------------------------------------------------------------
+
+# In this section the likelihood is computed and fed to the solution 
+# which implements the prior
 
 def hmm_viterbi_gaussian(yvec, mu, sigma, diag):
 	lhood = gaussian_likelihood(yvec, mu, sigma)
@@ -60,6 +79,27 @@ def hmm_marginal_logistic(yvec, mu, sigma, diag):
 
 	return soln
 
+
+def hmm_marginal_mixed_gaussian(yvec, mu, sigma, cval, diag):
+	lhood = mixed_gaussian_likelihood(yvec, mu, sigma, cval)
+
+	soln = numpy.zeros((yvec.size,), numpy.int32)
+	soln = hmm_marginal_c(lhood, diag)
+
+	return soln
+
+def hmm_marginal_mixed_logistic(yvec, mu, sigma, cval, diag):
+	lhood = mixed_logistic_likelihood(yvec, mu, sigma, cval)
+
+	soln = numpy.zeros((yvec.size,), numpy.int32)
+	soln = hmm_marginal_c(lhood, diag)
+
+	return soln
+
+
+# ------------------------------------------------------------------
+
+# The Viterbi solution
 
 cdef numpy.ndarray[numpy.int32_t,ndim=1] hmm_viterbi_c(
 		numpy.ndarray[numpy.float64_t,ndim=2] lhood,
@@ -142,6 +182,10 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] hmm_viterbi_c(
 
 	return soln
 
+
+# ------------------------------------------------------------------
+
+# The marginal solution.
 
 
 cdef numpy.ndarray[numpy.int32_t,ndim=1] hmm_marginal_c(

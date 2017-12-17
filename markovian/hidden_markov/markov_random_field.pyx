@@ -1,3 +1,5 @@
+# Need to document
+
 import numpy 
 cimport numpy
 
@@ -7,15 +9,29 @@ from libc.math cimport exp, sqrt
 from likelihood import  gaussian_likelihood
 from likelihood import  logistic_likelihood
 
+from likelihood import  mixed_gaussian_likelihood
+from likelihood import  mixed_logistic_likelihood
+
 
 # Put the likelihoods in place
 def hmrf_gaussian(yvec, mu, sigma, diag, converge=10.0**-6,max_iter=64):
 	lhood = gaussian_likelihood(yvec, mu, sigma)
 	return solve_hmrf(lhood, diag, converge, max_iter)
 
+def hmrf_mixed_gaussian(yvec, mu, sigma, cval, diag,
+		converge=10.0**-6,max_iter=64):
+	lhood = mixed_gaussian_likelihood(yvec, mu, sigma, cval)
+	return solve_hmrf(lhood, diag, converge, max_iter)
+
 def hmrf_logistic(yvec, mu, sigma, diag, converge=10.0**-6,max_iter=64):
 	lhood = logistic_likelihood(yvec, mu, sigma)
 	return solve_hmrf(lhood, diag, converge, max_iter)
+
+def hmrf_mixed_logistic(yvec, mu, sigma, cval, diag,
+		converge=10.0**-6,max_iter=64):
+	lhood = mixed_logistic_likelihood(yvec, mu, sigma, cval)
+	return solve_hmrf(lhood, diag, converge, max_iter)
+
 
 
 # Execute the solution given the likelihood
@@ -40,8 +56,6 @@ def	solve_hmrf(lhood, diag, converge, max_iter):
 
 	print 'converged at iteration', idx
 
-	# the marginal estimate
-#	soln = mrf.argmax(0).astype(numpy.int32)
 	soln = mrf.argmax(0)
 
 	return soln
