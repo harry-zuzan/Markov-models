@@ -66,35 +66,41 @@ def hmm_viterbi_mixed_logistic(yvec, mu, sigma, cval, diag):
 def hmm_marginal_gaussian(yvec, mu, sigma, diag):
 	lhood = gaussian_likelihood(yvec, mu, sigma)
 
-	soln = numpy.zeros((yvec.size,), numpy.int32)
-	soln = hmm_marginal_c(lhood, diag)
+	marginals = numpy.zeros((mu.size,yvec.size), numpy.float64)
+	marginals = hmm_marginal_c(lhood, diag)
+	soln = marginals.argmax(0)
 
-	return soln
+	return marginals, soln
+
 
 def hmm_marginal_logistic(yvec, mu, sigma, diag):
 	lhood = logistic_likelihood(yvec, mu, sigma)
 
-	soln = numpy.zeros((yvec.size,), numpy.int32)
-	soln = hmm_marginal_c(lhood, diag)
+	marginals = numpy.zeros((mu.size,yvec.size), numpy.float64)
+	marginals = hmm_marginal_c(lhood, diag)
+	soln = marginals.argmax(0)
 
-	return soln
+	return marginals, soln
 
 
 def hmm_marginal_mixed_gaussian(yvec, mu, sigma, cval, diag):
 	lhood = mixed_gaussian_likelihood(yvec, mu, sigma, cval)
 
-	soln = numpy.zeros((yvec.size,), numpy.int32)
-	soln = hmm_marginal_c(lhood, diag)
+	marginals = numpy.zeros((mu.size,yvec.size), numpy.float64)
+	marginals = hmm_marginal_c(lhood, diag)
+	soln = marginals.argmax(0)
 
-	return soln
+	return marginals, soln
+
 
 def hmm_marginal_mixed_logistic(yvec, mu, sigma, cval, diag):
 	lhood = mixed_logistic_likelihood(yvec, mu, sigma, cval)
 
-	soln = numpy.zeros((yvec.size,), numpy.int32)
-	soln = hmm_marginal_c(lhood, diag)
+	marginals = numpy.zeros((mu.size,yvec.size), numpy.float64)
+	marginals = hmm_marginal_c(lhood, diag)
+	soln = marginals.argmax(0)
 
-	return soln
+	return marginals, soln
 
 
 # ------------------------------------------------------------------
@@ -185,10 +191,8 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] hmm_viterbi_c(
 
 # ------------------------------------------------------------------
 
-# The marginal solution.
 
-
-cdef numpy.ndarray[numpy.int32_t,ndim=1] hmm_marginal_c(
+cdef numpy.ndarray[numpy.float64_t,ndim=2] hmm_marginal_c(
 		numpy.ndarray[numpy.float64_t,ndim=2] lhood,
 		double diag):
 
@@ -199,10 +203,6 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] hmm_marginal_c(
 	cdef int idx
 
 	cdef double tmp_double;
-
-	# the solution
-	cdef numpy.ndarray[numpy.int32_t,ndim=1] soln = \
-			numpy.zeros((N,), numpy.int32)
 
 	# forward probabilities
 	cdef numpy.ndarray[numpy.float64_t,ndim=2] fwd = \
@@ -243,7 +243,7 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] hmm_marginal_c(
 		fwd[:,t] /= fwd[:,t].sum()
 
 	# the last backward probability is based on no data following
-	for j in range(P): bwd[j,N-1] = 1.0/P
+	bwd[:,N-1] = 1.0/P
 
 	# the remaining are the probability of the state given all future
 	# data computed recursively
@@ -258,7 +258,7 @@ cdef numpy.ndarray[numpy.int32_t,ndim=1] hmm_marginal_c(
 		bwd[:,t] /= bwd[:,t].sum()
 		t -= 1
 
-	soln = (fwd*bwd).argmax(0).astype(numpy.int32)
+	marginals = fwd*bwd
+	marginals /= marginals.sum(0)
 
-	return soln
-
+	return marginals

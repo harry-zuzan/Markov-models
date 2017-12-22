@@ -34,6 +34,33 @@ def hmrf_mixed_logistic(yvec, mu, sigma, cval, diag,
 
 
 
+## Execute the solution given the likelihood
+#def	solve_hmrf(lhood, diag, converge, max_iter):
+#	P,N = lhood.shape
+
+#	# the Markov random field
+#	mrf = numpy.zeros((P,N), numpy.float64)
+#	mrf.fill(1.0/P)
+
+#	# transition probabilities in the form of a matrix
+#	trans = numpy.zeros((P,P), numpy.double)
+#	trans.fill((1.0 - diag)/(P - 1))
+#	for i in range(P): trans[i,i] = diag
+
+#	idx = 0
+#	while idx < max_iter:
+#		converge_iter = hmrf_iter_cy(mrf, lhood, trans)
+#		if converge_iter < converge: break
+
+#		idx += 1
+
+#	print 'converged at iteration', idx
+
+#	soln = mrf.argmax(0)
+
+#	return soln
+
+
 # Execute the solution given the likelihood
 def	solve_hmrf(lhood, diag, converge, max_iter):
 	P,N = lhood.shape
@@ -58,7 +85,7 @@ def	solve_hmrf(lhood, diag, converge, max_iter):
 
 	soln = mrf.argmax(0)
 
-	return soln
+	return mrf, soln
 
 
 # one iteration of the function to solve the mrf given data
