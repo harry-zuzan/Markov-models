@@ -1,16 +1,16 @@
-#from collections import namedtuple
-#
-##Segment = namedtuple('Segment',['start','stop','value'])
-#
-#class Segment:
-#	def __init__(self,start,stop,value):
-#		self.start = start
-#		self.stop = stop
-#		self.value = value
-#
-#	def size(self):
-#		return self.stop - self.start
-#
+from collections import namedtuple
+
+#Segment = namedtuple('Segment',['start','stop','value'])
+
+class Segment:
+	def __init__(self,start,stop,value):
+		self.start = start
+		self.stop = stop
+		self.value = value
+
+	def size(self):
+		return self.stop - self.start
+
 ## A doubly linked list of segments
 #class DLSeg:
 #	def __init__(self,seg):
@@ -117,35 +117,35 @@
 #	def segments(self):
 #		segs = [dl_seg.seg for dl_seg in self.dl_segs]
 #		return segs
-#
-#
-#def segment_values(vec):
-#	N = len(vec)
-#
-#	segment_list = []
-#
-#	idx = 0
-#	seg_val = vec[0]
-#	seg_start = idx
-#	seg_stop = idx
-#
-#	while idx < N:
-#		if vec[idx] == seg_val:
-#			idx += 1
-#			continue
-#
-#		seg_stop = idx
-#
-#		seg = Segment(seg_start,seg_stop,seg_val)
-#		segment_list.append(seg)
-#
-#		seg_val = vec[idx]
-#		seg_start = idx
-#
-#	seg_stop = idx
-#
-#	seg = Segment(seg_start,seg_stop,seg_val)
-#	segment_list.append(seg)
-#
-#	return segment_list
-#
+
+
+def get_segments(vec):
+	N = len(vec)
+
+	segment_list = []
+
+	idx = 0
+	seg_val = vec[0]
+	seg_start = idx
+	seg_stop = idx
+
+	while idx < N:
+		if vec[idx] == seg_val:
+			idx += 1
+			continue
+
+		seg_stop = idx
+
+		seg = Segment(seg_start,seg_stop,seg_val)
+		segment_list.append(seg)
+
+		seg_val = vec[idx]
+		seg_start = idx
+
+	seg_stop = idx
+
+	seg = Segment(seg_start,seg_stop,seg_val)
+	segment_list.append(seg)
+
+	return segment_list
+
