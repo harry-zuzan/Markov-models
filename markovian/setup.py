@@ -18,7 +18,11 @@ extensions = [
     Extension("hidden_markov.likelihood",
 			["hidden_markov/likelihood.pyx"],
         include_dirs = [numpy_inc],
-		)
+		),
+    Extension("hidden_markov.ising",
+			["hidden_markov/ising.pyx"],
+        include_dirs = [numpy_inc],
+		),
 	]
 
 
