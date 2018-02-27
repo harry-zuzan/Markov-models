@@ -2,6 +2,7 @@
 
 import numpy 
 cimport numpy
+cimport cython
 
 from libc.math cimport exp, sqrt
 #from libc.math cimport M_PI
@@ -66,6 +67,7 @@ def	solve_hmrf(lhood, diag, converge, max_iter):
 
 
 # one iteration of the function to solve the mrf given data
+@cython.boundscheck(False)
 cdef double hmrf_iter_cy(
 		numpy.ndarray[numpy.float64_t,ndim=2] mrf,
 		numpy.ndarray[numpy.float64_t,ndim=2] lhood,
@@ -154,6 +156,7 @@ def	sample_hmrf(lhood, diag, nburn, nsample):
 
 
 # Gibbs samles the states - either the mrf is burned in or use this to burn in
+@cython.boundscheck(False)
 cdef void hmrf_gaussian_gibbs_cy(
 		numpy.ndarray[numpy.float64_t,ndim=2] mrf,
 		numpy.ndarray[numpy.float64_t,ndim=2] lhood,
