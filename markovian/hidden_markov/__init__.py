@@ -16,6 +16,7 @@ from markov_random_field import hmrf_mixed_logistic
 from markov_random_field import hmrf_gaussian_sample
 
 from ising import ising_iter_gibbs
+from ising import parallel_ising_iter_gibbs
 
 
 from likelihood import prob_normal_vec
