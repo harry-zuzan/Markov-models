@@ -69,7 +69,7 @@ cdef ising_iter_gibbs_c(
 
 
 	#edges
-	for j in range(1,P-2):
+	for j in range(1,P-1):
 		sum_ec = ewt*(mrf[0,j-1] + mrf[0,j+1] + mrf[1,j])
 		sum_ec += cwt*(mrf[1,j-1] + mrf[1,j+1])
 		sum_ec += lwt*img[0,j] - hwt
@@ -85,7 +85,7 @@ cdef ising_iter_gibbs_c(
 		if prob < urand[N-1,j]: mrf[N-1,j] = 0
 		else: mrf[N-1,j] = 1
 
-	for i in range(1,N-2):
+	for i in range(1,N-1):
 		sum_ec = ewt*(mrf[i-1,0] + mrf[i+1,0] + mrf[i,1])
 		sum_ec += cwt*(mrf[i-1,1] + mrf[i+1,1])
 		sum_ec += lwt*img[i,0] - hwt
@@ -160,38 +160,36 @@ cdef parallel_ising_iter_gibbs_c(long[:,:] mrf, long[:,:] img,
 
 
 	#edges
-	for start_idx in range(1,3):
-		for j in prange(start_idx,P-1,2,nogil=True):
-			sum_e = ewt*(mrf[0,j-1] + mrf[0,j+1] + mrf[1,j])
-			sum_c = cwt*(mrf[1,j-1] + mrf[1,j+1])
-			sum_ec = sum_e + sum_c + lwt*img[0,j] - hwt
-			prob = 1.0/(1.0 + exp(-beta*sum_ec))
-			if prob < urand[0,j]: mrf[0,j] = 0
-			else: mrf[0,j] = 1
+	for j in range(1,P-1):
+		sum_e = ewt*(mrf[0,j-1] + mrf[0,j+1] + mrf[1,j])
+		sum_c = cwt*(mrf[1,j-1] + mrf[1,j+1])
+		sum_ec = sum_e + sum_c + lwt*img[0,j] - hwt
+		prob = 1.0/(1.0 + exp(-beta*sum_ec))
+		if prob < urand[0,j]: mrf[0,j] = 0
+		else: mrf[0,j] = 1
 
 	
-			sum_e = ewt*(mrf[N-1,j-1] + mrf[N-1,j+1] + mrf[N-2,j])
-			sum_c = cwt*(mrf[N-2,j-1] + mrf[N-2,j+1])
-			sum_ec = sum_e + sum_c + lwt*img[N-1,j] - hwt
-			prob = 1.0/(1.0 + exp(-beta*sum_ec))
-			if prob < urand[N-1,j]: mrf[N-1,j] = 0
-			else: mrf[N-1,j] = 1
+		sum_e = ewt*(mrf[N-1,j-1] + mrf[N-1,j+1] + mrf[N-2,j])
+		sum_c = cwt*(mrf[N-2,j-1] + mrf[N-2,j+1])
+		sum_ec = sum_e + sum_c + lwt*img[N-1,j] - hwt
+		prob = 1.0/(1.0 + exp(-beta*sum_ec))
+		if prob < urand[N-1,j]: mrf[N-1,j] = 0
+		else: mrf[N-1,j] = 1
 
-	for start_idx in range(1,3):
-		for i in prange(start_idx,N-1,nogil=True):
-			sum_e = ewt*(mrf[i-1,0] + mrf[i+1,0] + mrf[i,1])
-			sum_c = cwt*(mrf[i-1,1] + mrf[i+1,1])
-			sum_ec = sum_e + sum_c + lwt*img[i,0] - hwt
-			prob = 1.0/(1.0 + exp(-beta*sum_ec))
-			if prob < urand[i,0]: mrf[i,0] = 0
-			else: mrf[i,0] = 1
-	
-			sum_e = ewt*(mrf[i-1,P-1] + mrf[i+1,P-1] + mrf[i,P-2])
-			sum_c = cwt*(mrf[i-1,P-1] + mrf[i+1,P-1])
-			sum_ec = sum_e + sum_c + lwt*img[i,P-1] - hwt
-			prob = 1.0/(1.0 + exp(-beta*sum_ec))
-			if prob < urand[i,P-1]: mrf[i,P-1] = 0
-			else: mrf[i,P-1] = 1
+	for i in range(1,N-1):
+		sum_e = ewt*(mrf[i-1,0] + mrf[i+1,0] + mrf[i,1])
+		sum_c = cwt*(mrf[i-1,1] + mrf[i+1,1])
+		sum_ec = sum_e + sum_c + lwt*img[i,0] - hwt
+		prob = 1.0/(1.0 + exp(-beta*sum_ec))
+		if prob < urand[i,0]: mrf[i,0] = 0
+		else: mrf[i,0] = 1
+
+		sum_e = ewt*(mrf[i-1,P-1] + mrf[i+1,P-1] + mrf[i,P-2])
+		sum_c = cwt*(mrf[i-1,P-1] + mrf[i+1,P-1])
+		sum_ec = sum_e + sum_c + lwt*img[i,P-1] - hwt
+		prob = 1.0/(1.0 + exp(-beta*sum_ec))
+		if prob < urand[i,P-1]: mrf[i,P-1] = 0
+		else: mrf[i,P-1] = 1
 	
 
 	# middle
