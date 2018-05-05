@@ -203,3 +203,77 @@ cdef parallel_ising_iter_gibbs_c(long[:,:] mrf, long[:,:] img,
 				if prob < urand[i,j]: mrf[i,j] = 0
 				else: mrf[i,j] = 1
 
+
+
+# This function is in place for error checking 
+# returns the prior distn of all array elements.  Useful for looking
+# at that portion of the solution without the effect of the likelihood.
+# here the mrf will be an average of the counts recorded over run of sampling
+def parallel_ising_prior(mrf,beta,ewt,cwt,lwt,hwt):
+	return parallel_ising_prior_c(mrf,beta,ewt,cwt,lwt,hwt)
+
+@cython.boundscheck(False)
+@cython.cdivision(True)
+cdef double[:,:] parallel_ising_prior_c(double[:,:] mrf,
+		double beta, double ewt, double cwt, double lwt, double hwt):
+
+	cdef int N = mrf.shape[0]
+	cdef int P = mrf.shape[1]
+	cdef int i,j
+	cdef int start_idx
+	cdef double sum_e, sum_c, sum_ec
+	cdef double prob
+
+	cdef double[:,:] mrf_prior = numpy.zeros((N,P),numpy.double)
+
+
+	# corners
+	sum_ec = ewt*(mrf[0,1] + mrf[1,0]) + cwt*mrf[1,1] - hwt
+	mrf_prior[0,0] = 1.0/(1.0 + exp(-beta*sum_ec))
+	
+	sum_ec = ewt*(mrf[0,P-2] + mrf[1,P-1]) + cwt*mrf[1,P-2] - hwt
+	mrf_prior[0,P-1] = 1.0/(1.0 + exp(-beta*sum_ec))
+	
+	sum_ec = ewt*(mrf[N-2,0] + mrf[N-1,1]) + cwt*mrf[N-2,1] - hwt
+	mrf_prior[N-1,0] = 1.0/(1.0 + exp(-beta*sum_ec))
+	
+	sum_ec = ewt*(mrf[N-2,P-1] + mrf[N-1,P-2]) + cwt*mrf[N-2,P-2] - hwt
+	mrf_prior[N-1,P-1] = 1.0/(1.0 + exp(-beta*sum_ec))
+
+
+	#edges
+	for start_idx in range(1,3):
+		for j in prange(start_idx,P-1,2,nogil=True):
+			sum_e = ewt*(mrf[0,j-1] + mrf[0,j+1] + mrf[1,j])
+			sum_c = cwt*(mrf[1,j-1] + mrf[1,j+1])
+			sum_ec = sum_e + sum_c - hwt
+			mrf_prior[0,j] = 1.0/(1.0 + exp(-beta*sum_ec))
+
+			sum_e = ewt*(mrf[N-1,j-1] + mrf[N-1,j+1] + mrf[N-2,j])
+			sum_c = cwt*(mrf[N-2,j-1] + mrf[N-2,j+1])
+			sum_ec = sum_e + sum_c - hwt
+			mrf_prior[N-1,j] = 1.0/(1.0 + exp(-beta*sum_ec))
+
+	for start_idx in range(1,3):
+		for i in prange(start_idx,N-1,nogil=True):
+			sum_e = ewt*(mrf[i-1,0] + mrf[i+1,0] + mrf[i,1])
+			sum_c = cwt*(mrf[i-1,1] + mrf[i+1,1])
+			sum_ec = sum_e + sum_c - hwt
+			mrf_prior[i,0] = 1.0/(1.0 + exp(-beta*sum_ec))
+	
+			sum_e = ewt*(mrf[i-1,P-1] + mrf[i+1,P-1] + mrf[i,P-2])
+			sum_c = cwt*(mrf[i-1,P-1] + mrf[i+1,P-1])
+			sum_ec = sum_e + sum_c - hwt
+			mrf_prior[i,P-1] = 1.0/(1.0 + exp(-beta*sum_ec))
+	
+
+	# middle
+	for start_idx in range(1,3):
+		for i in prange(start_idx,N-1,2,nogil=True):
+			for j in range(1,P-1):
+				sum_e = mrf[i,j-1] + mrf[i,j+1] + mrf[i-1,j] +mrf[i+1,j]
+				sum_c = mrf[i-1,j-1] + mrf[i-1,j+1] + mrf[i+1,j-1] + mrf[i+1,j+1]  
+				sum_ec = ewt*sum_e + cwt*sum_c - hwt
+				mrf_prior[i,j] = 1.0/(1.0 + exp(-beta*sum_ec))
+
+	return mrf_prior
