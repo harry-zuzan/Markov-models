@@ -32,6 +32,7 @@ setup(
 	name = "Markov chains and random fields",
 	ext_modules = cythonize(extensions),
 	packages=['hidden_markov'],
+	zip_safe=False,
 )
 
 #__init__.py  markov_chain.pyx  sequence_segmenter.py
