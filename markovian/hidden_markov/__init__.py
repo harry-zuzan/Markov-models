@@ -32,7 +32,7 @@ from .likelihood import mixed_gaussian_likelihood
 from .likelihood import mixed_logistic_likelihood
 del likelihood
 
-from .sequence_segmenter import get_segments
+from .sequence_segmenter import get_segments, min_seg_size
 del sequence_segmenter
 
 ##__all__ = ["redescend_normal2", "redescend_normal1"]

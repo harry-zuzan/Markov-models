@@ -35,6 +35,11 @@ extensions = [
 		extra_compile_args=['-fopenmp'],
 		extra_link_args=['-fopenmp'],
 		),
+	Extension("mrf.mrf_hierarchical_1d", ["mrf/mrf_hierarchical_1d.pyx"],
+		include_dirs = [numpy_inc],
+#		extra_compile_args=['-fopenmp'],
+#		extra_link_args=['-fopenmp'],
+		),
 	]
 
 
